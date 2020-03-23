@@ -176,7 +176,7 @@ async function makeBackup() {
 
 async function listBackups() {
   try {
-    await prettyBackupList();
+    console.log(await prettyBackupList());
   } catch (e) {
     console.error(e);
   }
