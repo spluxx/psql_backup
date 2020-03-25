@@ -27,7 +27,6 @@ const {
 const SECONDS_IN_DAY = 24 * 60 * 60;
 const SECONDS_IN_WEEK = 7 * SECONDS_IN_DAY;
 const SECONDS_IN_MONTH = 4 * SECONDS_IN_WEEK;
-const SECONDS_IN_YEAR = 12 * SECONDS_IN_MONTH;
 
 const transport = nodemailer.createTransport({
   service: "gmail",
@@ -125,23 +124,37 @@ async function cleanup() {
   const [daily, weekly, monthly] = await backupTimestamps();
 
   if (daily.length > 7) {
-    const toMove = Math.max(...daily);
-    await execute(
-      `ssh ${BACKUP_STORE} "mv ~/.backups/daily/${toMove} ~/.backups/weekly/${toMove}"`
-    );
-    weekly.push(toMove);
+    const toMove = Math.min(...daily);
+    if (
+      weekly.length == 0 ||
+      toMove - Math.max(weekly) > 6.5 * SECONDS_IN_DAY
+    ) {
+      await execute(
+        `ssh ${BACKUP_STORE} "mv ~/.backups/daily/${toMove} ~/.backups/weekly/${toMove}"`
+      );
+      weekly.push(toMove);
+    } else {
+      await execute(`ssh ${BACKUP_STORE} "rm ~/.backups/daily/${toMove}"`);
+    }
   }
 
   if (weekly.length > 4) {
-    const toMove = Math.max(...weekly);
-    await execute(
-      `ssh ${BACKUP_STORE} "mv ~/.backups/weekly/${toMove} ~/.backups/monthly/${toMove}"`
-    );
-    monthly.push(toMove);
+    const toMove = Math.min(...weekly);
+    if (
+      monthly.length == 0 ||
+      toMove - Math.max(monthly) > 3.5 * SECONDS_IN_WEEK
+    ) {
+      await execute(
+        `ssh ${BACKUP_STORE} "mv ~/.backups/weekly/${toMove} ~/.backups/monthly/${toMove}"`
+      );
+      monthly.push(toMove);
+    } else {
+      await execute(`ssh ${BACKUP_STORE} "rm ~/.backups/weekly/${toMove}"`);
+    }
   }
 
   if (monthly.length > 12) {
-    const toRemove = Math.max(...monthly);
+    const toRemove = Math.min(...monthly);
     await execute(`ssh ${BACKUP_STORE} "rm ~/.backups/monthly/${toRemove}"`);
   }
 }
